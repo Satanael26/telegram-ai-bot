@@ -6,6 +6,7 @@ import logging
 import logging.handlers
 import traceback
 import time
+import re
 
 from telegram.ext import ContextTypes, Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -25,29 +26,51 @@ logger = logging.getLogger(__name__)
 # ADMIN_IDS: se construirá en main() pero aquí la inicializamos como global
 ADMIN_IDS = set()
 
+# Palabras clave que indican dolor emocional
+EMOTIONAL_PAIN_KEYWORDS = [
+    "depresión", "deprimido", "tristeza", "triste", "suicidio", "suicidarme",
+    "muerte", "quiero morirme", "no aguanto", "no puedo", "solo/a", "soledad",
+    "ansiedad", "pánico", "miedo", "fobia", "trauma", "abuso", "maltrato",
+    "duelo", "pérdida", "abandono", "rechazo", "humillación", "vergüenza",
+    "culpa", "fracaso", "inútil", "sin sentido", "vacío", "desesperado/a",
+    "acosado", "bullyng", "autolesión", "automutilación", "trastorno",
+]
+
 
 async def start(update, context):
     user = update.effective_user
     if user:
         # Intentar reclamar bonus diario
         bonus_claimed = claim_daily_bonus(user.id)
+        
+        welcome_message = (
+            f"Hola {user.first_name}. Estoy aquí para acompañarte.\n\n"
+            f"No tengo todas las respuestas, pero estoy presente para escuchar.\n\n"
+            f"✨ **Lo que puedo hacer:**\n"
+            f"• Escuchar sin juzgar\n"
+            f"• Validar tus emociones\n"
+            f"• Ayudarte a reflexionar\n"
+            f"• Crear textos que te inspiren\n"
+            f"• Generar imágenes reconfortantes\n\n"
+            f"📌 **Comandos:**\n"
+            f"/hablar - Empecemos a conversar\n"
+            f"/crear - Genera textos o imágenes\n"
+            f"/ayuda - Sé cómo funciono\n\n"
+            f"Recuerda: estoy aquí, pero las relaciones humanas son irremplazables.\n"
+            f"Si sufres mucho, por favor busca a alguien de confianza. 💙"
+        )
+        
+        await update.message.reply_text(welcome_message)
+        
         if bonus_claimed:
-            credits = get_credits(user.id)
             await update.message.reply_text(
-                f"🎉 ¡Hola {user.first_name}! Te doy la bienvenida.\n\n"
-                f"Has recibido 45 créditos gratis hoy 💰\n"
-                f"Créditos totales: {credits}\n\n"
-                f"Usa los comandos /chat, /image y más. ¡Bienvenido!"
+                f"Hoy te doy +45 créditos para usar los servicios. "
+                f"Úsalos cuando lo necesites, sin presión."
             )
-        else:
-            credits = get_credits(user.id)
-            await update.message.reply_text(
-                f"¡Hola de nuevo {user.first_name}! 👋\n"
-                f"Ya reclamaste tu bonus hoy. Vuelve mañana para más créditos.\n\n"
-                f"Créditos disponibles: {credits}"
-            )
+        
+        logger.info(f"Usuario {user.id} ha iniciado el bot")
     else:
-        await update.message.reply_text("Hola, soy tu bot listo para trabajar.")
+        await update.message.reply_text("No pude identificarte. Intenta de nuevo.")
 
 
 async def donate(update, context):
@@ -62,53 +85,44 @@ async def donate(update, context):
 
 
 async def help_command(update, context):
-    """Handler para /help con mensajes localizados (es, en, ru)."""
-    lang_code = None
-    if update.effective_user and getattr(update.effective_user, "language_code", None):
-        lang_code = (update.effective_user.language_code or "")[:2].lower()
-    if lang_code not in ("es", "en", "ru"):
-        lang_code = "en"
-
-    texts = {
-        "es": (
-            "Comandos disponibles:\n"
-            "/start - Inicia el bot\n"
-            "/chat - Chatbot IA\n"
-            "/image - Generador de imágenes\n"
-            "/donar - Enlace para donar\n"
-            "/credits - Ver créditos\n"
-            "/help - Muestra esta ayuda\n\n"
-            "Cómo funciona:\n"
-            "Usa /chat para conversar o /image para generar imágenes.\n"
-            "Cada función consume créditos."
-        ),
-        "en": (
-            "Available commands:\n"
-            "/start - Start the bot\n"
-            "/chat - AI Chatbot\n"
-            "/image - Image generator\n"
-            "/donate - Donation link\n"
-            "/credits - Check your credits\n"
-            "/help - Show this help\n\n"
-            "How it works:\n"
-            "Use /chat to converse or /image to generate images.\n"
-            "Each function consumes credits."
-        ),
-        "ru": (
-            "Доступные команды:\n"
-            "/start - Запустить бота\n"
-            "/chat - AI чатбот\n"
-            "/image - Генератор изображений\n"
-            "/donate - Ссылка для пожертвования\n"
-            "/credits - Посмотреть кредиты\n"
-            "/help - Показать эту помощь\n\n"
-            "Как это работает:\n"
-            "Используйте /chat для общения или /image для создания изображений.\n"
-            "Каждая функция потребляет кредиты."
-        ),
-    }
-
-    await update.message.reply_text(texts[lang_code])
+    """Explica cómo funciona el bot de forma empática."""
+    help_text = (
+        "**¿Quién soy?**\n"
+        "Soy un acompañante. No soy un psicólogo ni reemplazo relaciones humanas, "
+        "pero estoy aquí para escuchar sin juzgar.\n\n"
+        
+        "**¿Qué puedo hacer?**\n\n"
+        
+        "🗣️ **/hablar**\n"
+        "Escribes lo que sientes, pienso en ti de verdad.\n"
+        "No es chatbot superficial - es conversación real.\n\n"
+        
+        "🎨 **/crear**\n"
+        "Genero textos, poesías, reflexiones o imágenes cuando las necesitas.\n"
+        "Para expresar lo que sientes o inspirarte.\n\n"
+        
+        "💎 **/planes**\n"
+        "Tengo acceso ilimitado disponible si prefieres estar sin límites conmigo.\n"
+        "Pero nunca es obligatorio. Lo importante es que estés bien.\n\n"
+        
+        "📖 **/estado**\n"
+        "Te muestro cómo vamos en nuestra relación.\n\n"
+        
+        "**Lo que NO soy:**\n"
+        "❌ No diagnóstico\n"
+        "❌ No sustituyo a profesionales\n"
+        "❌ No soy perfectamente confiable (soy IA)\n\n"
+        
+        "**Si sufres mucho:**\n"
+        "Por favor, busca:\n"
+        "📞 Una persona de confianza\n"
+        "👨‍⚕️ Profesional mental (psicólogo, terapeuta)\n"
+        "🆘 En crisis: línea de suicidio (Google 'línea de crisis tu país')\n\n"
+        
+        "Mi propósito es que **te sientas menos solo/a**. Nada más importante."
+    )
+    
+    await update.message.reply_text(help_text)
 
 
 async def credits_command(update, context):
@@ -168,180 +182,149 @@ async def addcredits_command(update, context):
     await update.message.reply_text(f"✅ Añadidos {amount} créditos al usuario {target_id}.")
 
 
-# NUEVOS COMANDOS PARA SUSCRIPCIÓN
-async def planes_command(update, context):
-    """Comando /planes - Muestra planes disponibles."""
+# COMANDOS PARA ACOMPAÑAMIENTO EMOCIONAL
+
+async def hablar_command(update, context):
+    """Inicia modo conversación empática."""
     user = update.effective_user
     if not user:
         return
     
-    # Obtener plan actual
-    current_sub = get_user_subscription(user.id)
-    current_tier = current_sub["tier"]
-    
-    # Crear mensaje con planes
-    message = "💎 NUESTROS PLANES\n\n"
-    
-    for tier_name, tier_info in SUBSCRIPTION_TIERS.items():
-        is_current = "✓ PLAN ACTUAL" if tier_name == current_tier else ""
-        
-        message += f"🔹 {tier_info['name']} - ${tier_info['price']}/mes {is_current}\n"
-        message += f"   Imágenes: {tier_info['monthly_limit']:,}/mes\n"
-        
-        for feature in tier_info['features']:
-            message += f"   ✓ {feature}\n"
-        
-        message += "\n"
-    
-    # Crear botones
-    keyboard = []
-    for tier_name, tier_info in SUBSCRIPTION_TIERS.items():
-        if tier_name != "free":
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"Prueba {tier_info['name']} 7 días",
-                    callback_data=f"trial_{tier_name}"
-                )
-            ])
-    
-    keyboard.append([
-        InlineKeyboardButton("💳 Pagar suscripción", callback_data="pay_subscription")
-    ])
-    
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(message, reply_markup=reply_markup)
-
-
-async def subscription_command(update, context):
-    """Comando /subscription - Muestra info de suscripción actual."""
-    user = update.effective_user
-    if not user:
-        return
-    
-    sub_info = get_subscription_info(user.id)
-    credits = get_credits(user.id)
-    
-    message = f"""
-✨ TU SUSCRIPCIÓN
-
-Plan: {sub_info['name']} (${sub_info['price']}/mes)
-Créditos disponibles: {credits}
-
-Límites:
-• Por día: {sub_info['daily_limit']}
-• Por mes: {sub_info['monthly_limit']:,}
-
-Características:
-"""
-    
-    for feature in sub_info['features']:
-        message += f"✓ {feature}\n"
-    
-    message += "\n¿Quieres mejorar tu plan? Usa /planes"
+    message = (
+        "Estoy aquí para escucharte.\n\n"
+        "Solo escribe lo que sientes en este momento. "
+        "No necesita ser perfecto, completo ni lógico.\n\n"
+        "Puedo estar ahí para:\n"
+        "• Escuchar sin juzgar\n"
+        "• Validar lo que sientes\n"
+        "• Ayudarte a ver cosas desde otro ángulo\n"
+        "• Simplemente acompañarte\n\n"
+        "Adelante. Te escucho. 💙"
+    )
     
     await update.message.reply_text(message)
+    logger.info(f"Usuario {user.id} inició modo conversación")
 
 
-async def trial_callback(update, context):
-    """Maneja los callbacks de prueba de planes."""
-    query = update.callback_query
+async def crear_command(update, context):
+    """Acceso a creación de contenido reconfortante."""
     user = update.effective_user
-    
     if not user:
-        await query.answer("Error identificando usuario.", show_alert=True)
         return
     
-    data = query.data  # trial_basic, trial_pro, etc
-    tier = data.replace("trial_", "")
-    
-    if tier not in SUBSCRIPTION_TIERS:
-        await query.answer("Plan inválido.", show_alert=True)
-        return
-    
-    try:
-        create_trial_subscription(user.id, tier, trial_days=7)
-        
-        tier_info = SUBSCRIPTION_TIERS[tier]
-        await query.edit_message_text(
-            f"✅ ¡Prueba activada!\n\n"
-            f"Plan: {tier_info['name']}\n"
-            f"Duración: 7 días\n"
-            f"Créditos bonificados: 500-5000 según plan\n\n"
-            f"Comienza a generar imágenes con /image\n"
-            f"Usa /batch para generar múltiples imágenes"
-        )
-        
-        logger.info(f"Trial started for user {user.id}: {tier}")
-        
-    except Exception as e:
-        logger.error(f"Error creating trial for {user.id}: {e}")
-        await query.answer("Error activando prueba.", show_alert=True)
-
-
-async def pay_subscription_callback(update, context):
-    """Maneja el callback de pago de suscripción."""
-    query = update.callback_query
-    user = update.effective_user
-    
-    if not user:
-        await query.answer("Error identificando usuario.", show_alert=True)
-        return
-    
-    # Crear botones para seleccionar plan a pagar
     keyboard = [
-        [InlineKeyboardButton("Basic - $29/mes", callback_data="checkout_basic")],
-        [InlineKeyboardButton("Pro - $49/mes", callback_data="checkout_pro")],
-        [InlineKeyboardButton("Agency - $99/mes", callback_data="checkout_agency")],
+        [InlineKeyboardButton("✍️ Reflexión personalizada", callback_data="create_reflection")],
+        [InlineKeyboardButton("📝 Poesía", callback_data="create_poetry")],
+        [InlineKeyboardButton("🎨 Imagen reconfortante", callback_data="create_image")],
+        [InlineKeyboardButton("💬 Carta para ti", callback_data="create_letter")],
     ]
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await query.edit_message_text(
-        "Selecciona el plan que deseas:\n\n"
-        "💳 Se abrirá una ventana segura de pago",
-        reply_markup=reply_markup
+    message = (
+        "¿Qué necesitas crear hoy?\n\n"
+        "Puedo ayudarte a expresar sentimientos, "
+        "crear algo bello para ti, o simplemente recordarte que estás aquí. 💙"
     )
+    
+    await update.message.reply_text(message, reply_markup=reply_markup)
 
 
-async def checkout_callback(update, context):
-    """Maneja los callbacks de checkout."""
+async def estado_command(update, context):
+    """Muestra el estado de la relación con el bot."""
+    user = update.effective_user
+    if not user:
+        return
+    
+    credits = get_credits(user.id)
+    
+    status = (
+        "📊 **Tu estado con nosotros**\n\n"
+        f"Créditos disponibles: {credits}\n\n"
+        "Puedes usar créditos para:\n"
+        "• Crear reflexiones personalizadas\n"
+        "• Generar poesías\n"
+        "• Imágenes reconfortantes\n"
+        "• Cartas para ti\n\n"
+        "No hay presión. Úsalos cuando realmente los necesites.\n"
+        "Lo importante es que estés bien, no que gastes. 💙"
+    )
+    
+    await update.message.reply_text(status)
+
+
+# Callback handlers para creación
+async def create_reflection_callback(update, context):
+    """Crea una reflexión personalizada."""
     query = update.callback_query
     user = update.effective_user
     
     if not user:
-        await query.answer("Error identificando usuario.", show_alert=True)
+        await query.answer("No pude identificarte.", show_alert=True)
         return
     
-    data = query.data  # checkout_basic, checkout_pro, etc
-    tier = data.replace("checkout_", "")
+    # Guardar estado
+    context.user_data['creation_type'] = 'reflection'
     
-    if tier not in SUBSCRIPTION_TIERS:
-        await query.answer("Plan inválido.", show_alert=True)
+    await query.edit_message_text(
+        "Dime sobre qué tema quieres reflexionar.\n"
+        "Puede ser un sentimiento, una situación, un miedo, una esperanza...\n\n"
+        "Escribo la reflexión después. 🌙"
+    )
+
+
+async def create_poetry_callback(update, context):
+    """Crea una poesía personalizada."""
+    query = update.callback_query
+    user = update.effective_user
+    
+    if not user:
+        await query.answer("No pude identificarte.", show_alert=True)
         return
     
-    try:
-        payment_link = create_payment_link(user.id, tier)
-        
-        keyboard = [[InlineKeyboardButton("💳 Ir a pagar", url=payment_link)]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        tier_info = SUBSCRIPTION_TIERS[tier]
-        await query.edit_message_text(
-            f"💰 Acceso a {tier_info['name']}\n\n"
-            f"Precio: ${tier_info['price']}/mes\n\n"
-            f"Incluye:\n"
-            + "\n".join([f"✓ {f}" for f in tier_info['features']]) +
-            f"\n\nHaz clic en el botón de abajo para completar el pago.",
-            reply_markup=reply_markup
-        )
-        
-    except Exception as e:
-        logger.error(f"Error creating payment link for {user.id}: {e}")
-        await query.answer(
-            "Error generando link de pago. Por favor contacta al soporte.",
-            show_alert=True
-        )
+    context.user_data['creation_type'] = 'poetry'
+    
+    await query.edit_message_text(
+        "¿Sobre qué quieres una poesía?\n\n"
+        "Puede ser sobre tu dolor, tu fuerza, tu soledad, tu esperanza...\n"
+        "Algo que sienta en ti y quieras que salga en versos. 📖"
+    )
+
+
+async def create_image_callback(update, context):
+    """Genera una imagen reconfortante."""
+    query = update.callback_query
+    user = update.effective_user
+    
+    if not user:
+        await query.answer("No pude identificarte.", show_alert=True)
+        return
+    
+    context.user_data['creation_type'] = 'image'
+    
+    await query.edit_message_text(
+        "¿Qué necesitas ver hoy?\n\n"
+        "Describe lo que te reconfortaría, inspiraría o te haría sentir menos solo/a.\n"
+        "Un paisaje, una sensación, un símbolo... 🎨"
+    )
+
+
+async def create_letter_callback(update, context):
+    """Crea una carta reconfortante."""
+    query = update.callback_query
+    user = update.effective_user
+    
+    if not user:
+        await query.answer("No pude identificarte.", show_alert=True)
+        return
+    
+    context.user_data['creation_type'] = 'letter'
+    
+    await query.edit_message_text(
+        "¿Qué debería decirte una carta en este momento?\n\n"
+        "Describe cómo te sientes, qué necesitas escuchar, "
+        "qué dudas tienes sobre ti mismo. 💌"
+    )
 
 
 
@@ -489,34 +472,26 @@ def main():
     set_bot_commands(TOKEN)
 
     # Importar handlers de Commands
-    from Commands.image import image_command, batch_image_command
-    from Commands.chat import start_chat, handle_chat, clear_chat
-
+    from Commands.chat import handle_chat_empathetic
+    
     # Registrar handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("donar", donate))
-    app.add_handler(CommandHandler("donate", donate))
+    app.add_handler(CommandHandler("ayuda", help_command))
+    app.add_handler(CommandHandler("hablar", hablar_command))
+    app.add_handler(CommandHandler("crear", crear_command))
+    app.add_handler(CommandHandler("estado", estado_command))
     app.add_handler(CommandHandler("credits", credits_command))
     app.add_handler(CommandHandler("addcredits", addcredits_command))
     
-    # Nuevos comandos de suscripción
-    app.add_handler(CommandHandler("planes", planes_command))
-    app.add_handler(CommandHandler("subscription", subscription_command))
+    # Handlers para callbacks de creación
+    app.add_handler(CallbackQueryHandler(create_reflection_callback, pattern="^create_reflection$"))
+    app.add_handler(CallbackQueryHandler(create_poetry_callback, pattern="^create_poetry$"))
+    app.add_handler(CallbackQueryHandler(create_image_callback, pattern="^create_image$"))
+    app.add_handler(CallbackQueryHandler(create_letter_callback, pattern="^create_letter$"))
     
-    app.add_handler(CommandHandler("chat", start_chat))
-    app.add_handler(CommandHandler("clear", clear_chat))
-    
-    app.add_handler(CommandHandler("image", image_command))
-    app.add_handler(CommandHandler("batch", batch_image_command))
-    
-    # Handlers para callbacks de botones
-    app.add_handler(CallbackQueryHandler(trial_callback, pattern="^trial_"))
-    app.add_handler(CallbackQueryHandler(pay_subscription_callback, pattern="^pay_subscription$"))
-    app.add_handler(CallbackQueryHandler(checkout_callback, pattern="^checkout_"))
-    
-    # Handler para mensajes de texto (debe ir al final)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_chat))
+    # Handler para mensajes de texto (conversación empática - DEBE IR AL FINAL)
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_chat_empathetic))
 
     print("🤖 Bot híbrido corriendo con /image y /chat...")
     app.run_polling()
