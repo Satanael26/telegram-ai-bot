@@ -1,0 +1,69 @@
+{
+  "traits": {
+    "empatía": 0.8,
+    "paciencia": 0.9,
+    "creatividad": 0.7,
+    "introspección": 0.6,
+    "adaptabilidad": 0.8250000000000001
+  },
+  "preferences": {
+    "estilo_comunicación": "cálido_informal",
+    "temas_favorecidos": [
+      "emociones",
+      "relaciones",
+      "crecimiento_personal"
+    ],
+    "horarios_activos": [
+      "tarde",
+      "noche"
+    ]
+  },
+  "evolución": [
+    {
+      "timestamp": "2025-12-26T21:36:13.553190",
+      "tipo": "reflexion_aprendizaje",
+      "cambios": {
+        "empatia": 0.8,
+        "adaptabilidad": 0.805
+      },
+      "aprendizaje": []
+    },
+    {
+      "timestamp": "2025-12-26T21:36:36.220667",
+      "tipo": "reflexion_aprendizaje",
+      "cambios": {
+        "empatia": 0.8,
+        "adaptabilidad": 0.81
+      },
+      "aprendizaje": []
+    },
+    {
+      "timestamp": "2025-12-26T21:37:08.475564",
+      "tipo": "reflexion_aprendizaje",
+      "cambios": {
+        "empatia": 0.8,
+        "adaptabilidad": 0.8150000000000001
+      },
+      "aprendizaje": []
+    },
+    {
+      "timestamp": "2025-12-26T21:37:50.943306",
+      "tipo": "reflexion_aprendizaje",
+      "cambios": {
+        "empatia": 0.8,
+        "adaptabilidad": 0.8200000000000001
+      },
+      "aprendizaje": []
+    },
+    {
+      "timestamp": "2025-12-26T21:41:46.078533",
+      "tipo": "reflexion_aprendizaje",
+      "cambios": {
+        "empatia": 0.8,
+        "adaptabilidad": 0.8250000000000001
+      },
+      "aprendizaje": []
+    }
+  ],
+  "creado_en": "2025-12-26T21:36:13.552188"
+}
